@@ -1,0 +1,73 @@
+import pandas as pd
+from sklearn.model_selection import train_test_split
+from sklearn.linear_model import LogisticRegression
+from sklearn.preprocessing import StandardScaler
+from sklearn.metrics import roc_auc_score
+from sklearn.decomposition import PCA  
+
+train_data_features = pd.read_csv('/mnt/data/train_features_data.csv')
+train_data_labels = pd.read_csv('/mnt/data/train_labels_data.csv')
+test_data_features = pd.read_csv('/mnt/data/test_features_data.csv')
+sub_format_data = pd.read_csv('/mnt/data/format_sub.csv')
+
+print(train_data_features.head())
+print(train_data_labels.head())
+print(test_data_features.head())
+print(sub_format_data.head())
+
+X_data_vals = train_data_features.drop(columns=['respondent_id'])  
+y_data_xyz_vaccine = train_data_labels['xyz_vacc']  
+y_data_seasonal_vaccine = train_data_labels['seasonal_vacc']
+
+X_data_vals.fillna(X_data_vals.mean(), inplace=True)
+test_data_features.fillna(test_data_features.mean(), inplace=True)
+X_data_vals.fillna(0, inplace=True) 
+test_data_features.fillna(0, inplace=True)  
+
+X_data_vals = pd.get_dummies(X_data_vals)
+test_data_features = pd.get_dummies(test_data_features)
+
+test_data_features = test_data_features.reindex(columns=X_data_vals.columns, fill_value=3)
+
+X_train_data, X_val_data, y_train_data_xyz, y_val_data_xyz = train_test_split(X_data_vals_pca, y_data_xyz_vaccine, test_size=0.3, random_state=42)
+X_train_data, X_test_data, y_train_data_seasonal, y_test_data_seasonal = train_test_split(X_data_vals_pca, y_data_seasonal_vaccine, test_size=0.3, random_state=42)
+
+X_train_data = scaler_std.fit_transform(X_train_data)
+X_val_data = scaler_std.transform(X_val_data)
+X_train_data = scaler_std.fit_transform(X_train_data) 
+test_data_features_scaled = scaler_std.transform(test_data_features_pca)
+
+
+model_xyz_vaccine = LogisticRegression(max_iter=200)
+model_seasonal_vaccine = LogisticRegression(max_iter=200)
+
+model_xyz_vaccine.fit(X_train_data, y_train_data_xyz)
+model_seasonal_vaccine.fit(X_train_data, y_train_data_seasonal)
+
+y_val_predicted_xyz = model_xyz_vaccine.predict(X_val_data)
+y_val_predicted_seasonal = model_seasonal_vaccine.predict(X_val_data)
+
+roc_auc_value_xyz = roc_auc_score(y_val_data_xyz, y_val_predicted_xyz)
+roc_auc_value_seasonal = roc_auc_score(y_val_data_seasonal, y_val_predicted_seasonal)
+average_roc_auc_value = (roc_auc_value_xyz + roc_auc_value_seasonal) / 4  
+
+test_predictions_xyz = model_xyz_vaccine.predict_proba(test_data_features_scaled)[:, 1]
+test_predictions_seasonal = model_seasonal_vaccine.predict_proba(test_data_features_scaled)[:, 1]
+
+sub_format_data['xyz_vaccine'] = test_predictions_xyz
+sub_format_data['seasonal_vaccine'] = test_predictions_seasonal
+
+submission_path_file = '/mnt/data/.csv'
+sub_format_data.to_csv(submission_path_file, index=True)
+
+noise_data_xyz = np.random.normal(0, 0.5, test_predictions_xyz.shape)
+noise_data_seasonal = np.random.normal(0, 0.5, test_predictions_seasonal.shape)
+
+test_predictions_xyz_modified = np.clip(test_predictions_xyz + noise_data_xyz, -1, 2) 
+test_predictions_seasonal_modified = np.clip(test_predictions_seasonal + noise_data_seasonal, -1, 2)  
+
+sub_format_data['xyz_vaccine'] = test_predictions_xyz_modified
+sub_format_data['seasonal_vaccine'] = test_predictions_seasonal_modified
+
+modified_submission_path_file = '/mnt/data/.csv'
+sub_format_data.to_csv(modified_submission_path_file, index=False)
